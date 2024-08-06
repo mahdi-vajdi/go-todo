@@ -1,97 +1,104 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"net/http"
-	"strings"
+	"strconv"
 	"todo/models"
+	"todo/repository"
 )
 
-var toDos = []models.ToDo{
-	{Id: "1", Title: "First", Completed: false},
+var repo *repository.TodoRepository
+
+func InitHandlers(db *sql.DB) {
+	repo = &repository.TodoRepository{DB: db}
 }
 
-func TodosHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		getToDos(w, r)
-	case "POST":
-		createToDo(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+func GetToDos(w http.ResponseWriter, r *http.Request) {
+	todos, err := repo.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-}
-
-func TodoHandler(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/todos/")
-	switch r.Method {
-	case "GET":
-		getToDoById(w, r, id)
-	case "PUT":
-		updateToDo(w, r, id)
-	case "DELETE":
-		deleteToDo(w, r, id)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-
-	}
-}
-
-func getToDos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toDos)
+	json.NewEncoder(w).Encode(todos)
 }
 
-func createToDo(w http.ResponseWriter, r *http.Request) {
+func CreateToDo(w http.ResponseWriter, r *http.Request) {
 	var newToDo models.ToDo
 	if err := json.NewDecoder(r.Body).Decode(&newToDo); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	toDos = append(toDos, newToDo)
+	if err := repo.Create(&newToDo); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newToDo)
 }
 
-func getToDoById(w http.ResponseWriter, r *http.Request, id string) {
-	for _, a := range toDos {
-		if a.Id == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(a)
-			return
-		}
+func GetToDoById(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	http.Error(w, "To-Do not found", http.StatusNotFound)
+	todo, err := repo.GetOneById(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if todo == nil {
+		http.Error(w, "To-Do not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(todo)
 }
 
-func updateToDo(w http.ResponseWriter, r *http.Request, id string) {
+func UpdateToDo(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid Id",
+			http.StatusBadRequest)
+		return
+	}
+
 	var updatedToDo models.ToDo
 	if err := json.NewDecoder(r.Body).Decode(&updatedToDo); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	updatedToDo.Id = id
 
-	for i, t := range toDos {
-		if t.Id == id {
-			toDos[i] = updatedToDo
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updatedToDo)
-			return
-		}
+	if err := repo.Update(&updatedToDo); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	http.Error(w, "To-do not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedToDo)
 }
 
-func deleteToDo(w http.ResponseWriter, r *http.Request, id string) {
-	for i, t := range toDos {
-		if t.Id == id {
-			toDos = append(toDos[:i], toDos[i+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"message": "To-do deleted"})
-			return
-		}
+func DeleteToDo(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "Invalid to-do ID", http.StatusBadRequest)
+		return
 	}
-	http.Error(w, "To-do not found", http.StatusNotFound)
+
+	if err := repo.Delete(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "To-Do deleted"})
 }

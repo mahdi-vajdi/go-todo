@@ -1,7 +1,7 @@
 package models
 
 type ToDo struct {
-	Id        string `json:"id"`
+	Id        int    `json:"id"`
 	Title     string `json:"title"`
 	Completed bool   `json:"completed"`
 }

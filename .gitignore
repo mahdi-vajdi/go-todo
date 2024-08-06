@@ -1,0 +1,45 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Directories
+/vendor/
+/bin/
+/pkg/
+
+# IDE and editor specific files
+.idea/
+.vscode/
+*.swp
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Go Modules
+go.sum
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# Config file for goreleaser
+.dist/
+
+# MacOS system files
+.DS_Store
+
+# Node.js (if any)
+node_modules/
+
+# Other system files
+Thumbs.db
+Desktop.ini
