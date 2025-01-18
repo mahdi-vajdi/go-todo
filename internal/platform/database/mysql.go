@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"time"
 )
 
@@ -11,11 +12,11 @@ type Config struct {
 	Port     int
 	User     string
 	Password string
-	DBName   string
+	Name     string
 }
 
 func NewConnection(config Config) (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", config.User, config.Password, config.Host, config.Port, config.DBName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", config.User, config.Password, config.Host, config.Port, config.Name)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
