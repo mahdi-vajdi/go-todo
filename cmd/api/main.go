@@ -3,14 +3,15 @@ package main
 import (
 	"log"
 	"net/http"
+	"todo/config"
 	"todo/internal/auth"
-	"todo/internal/platform/config"
-	"todo/internal/platform/database"
+	"todo/internal/database"
+	router "todo/internal/http"
 	"todo/internal/todo"
 )
 
 func main() {
-
+	// Load the configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load cofig: %v", err)
@@ -18,13 +19,12 @@ func main() {
 
 	// Initialize the database
 	dbConfig := database.Config{
-		Host:     cfg.Host,
-		Port:     cfg.Port,
-		User:     cfg.User,
-		Password: cfg.Password,
-		Name:     cfg.Name,
+		Host:     cfg.Database.Host,
+		Port:     cfg.Database.Port,
+		User:     cfg.Database.User,
+		Password: cfg.Database.Password,
+		Name:     cfg.Database.Name,
 	}
-
 	db, err := database.NewConnection(dbConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +40,7 @@ func main() {
 	todoHandler := todo.NewHandler(todoService)
 
 	// Setup routes
-	mux := http.NewServeMux()
+	mux := router.NewRouter(authHandler, todoHandler)
 
 	// Auth routes
 	mux.HandleFunc("/register", authHandler.Register)

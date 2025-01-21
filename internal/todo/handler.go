@@ -16,11 +16,6 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -45,11 +40,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)

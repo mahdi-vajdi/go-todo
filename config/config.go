@@ -7,12 +7,21 @@ import (
 	"strconv"
 )
 
-type Config struct {
+type DatabaseConfig struct {
 	Host     string
 	Port     int
 	User     string
 	Password string
 	Name     string
+}
+
+type AuthConfig struct {
+	JwtSecret string
+}
+
+type Config struct {
+	Database DatabaseConfig
+	Auth     AuthConfig
 }
 
 func Load() (*Config, error) {
@@ -27,11 +36,16 @@ func Load() (*Config, error) {
 	}
 
 	config := &Config{
-		Host:     os.Getenv("MYSQL_HOST"),
-		Port:     port,
-		User:     os.Getenv("MYSQL_USER"),
-		Password: os.Getenv("MYSQL_PASSWORD"),
-		Name:     os.Getenv("MYSQL_DBNAME"),
+		Database: DatabaseConfig{
+			Host:     os.Getenv("MYSQL_HOST"),
+			Port:     port,
+			User:     os.Getenv("MYSQL_USER"),
+			Password: os.Getenv("MYSQL_PASSWORD"),
+			Name:     os.Getenv("MYSQL_DBNAME"),
+		},
+		Auth: AuthConfig{
+			JwtSecret: os.Getenv("JWT_SECRET"),
+		},
 	}
 
 	return config, nil
