@@ -18,21 +18,20 @@ func main() {
 	}
 
 	// Initialize the database
-	dbConfig := database.Config{
+	db, err := database.NewConnection(database.Config{
 		Host:     cfg.Database.Host,
 		Port:     cfg.Database.Port,
 		User:     cfg.Database.User,
 		Password: cfg.Database.Password,
 		Name:     cfg.Database.Name,
-	}
-	db, err := database.NewConnection(dbConfig)
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
 	// Initialize services
-	authService := auth.NewService(db, []byte("secret"))
+	authService := auth.NewService(db, &cfg.Auth)
 	todoService := todo.NewService(db)
 
 	// Initialize handlers
@@ -52,8 +51,8 @@ func main() {
 	todoRoutes.HandleFunc("/get", todoHandler.Get)
 
 	// Apply JWT middleware
-	mux.Handle("/todos", auth.JwtMiddleware(http.StripPrefix("/todos", todoRoutes)))
-	mux.Handle("/todos/", auth.JwtMiddleware(http.StripPrefix("/todos", todoRoutes)))
+	mux.Handle("/todos", auth.JwtMiddleware(&cfg.Auth, http.StripPrefix("/todos", todoRoutes)))
+	mux.Handle("/todos/", auth.JwtMiddleware(&cfg.Auth, http.StripPrefix("/todos", todoRoutes)))
 
 	// Add global prefix to the routes
 	apiHandler := http.StripPrefix("/api", mux)

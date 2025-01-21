@@ -5,13 +5,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"strings"
+	"todo/config"
 )
 
 type contextKey string
 
 const UserContextKey contextKey = "user"
 
-func JwtMiddleware(next http.Handler) http.Handler {
+func JwtMiddleware(cfg *config.AuthConfig, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -21,7 +22,7 @@ func JwtMiddleware(next http.Handler) http.Handler {
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte("secret"), nil // TODO: get secret from env
+			return cfg.JwtSecret, nil
 		})
 		if err != nil || !token.Valid {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

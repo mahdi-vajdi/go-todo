@@ -7,11 +7,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"time"
+	"todo/config"
 )
 
 type Service struct {
-	db     *sql.DB
-	secret []byte
+	db  *sql.DB
+	cfg *config.AuthConfig
 }
 
 type LoginResponse struct {
@@ -19,8 +20,8 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func NewService(db *sql.DB, jwtSecret []byte) *Service {
-	return &Service{db: db, secret: jwtSecret}
+func NewService(db *sql.DB, config *config.AuthConfig) *Service {
+	return &Service{db: db, cfg: config}
 }
 
 func (s *Service) RegisterUser(credentials Credentials) error {
@@ -71,7 +72,7 @@ func (s *Service) generateToken(userId int64) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString(s.secret)
+	tokenString, err := token.SignedString(s.cfg.JwtSecret)
 	if err != nil {
 		return "", fmt.Errorf("error signing token: %w", err)
 	}

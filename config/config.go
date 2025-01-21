@@ -16,7 +16,7 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	JwtSecret string
+	JwtSecret []byte
 }
 
 type Config struct {
@@ -44,7 +44,7 @@ func Load() (*Config, error) {
 			Name:     os.Getenv("MYSQL_DBNAME"),
 		},
 		Auth: AuthConfig{
-			JwtSecret: os.Getenv("JWT_SECRET"),
+			JwtSecret: []byte(os.Getenv("JWT_SECRET")),
 		},
 	}
 
