@@ -6,7 +6,6 @@ import (
 	"todo/config"
 	"todo/internal/auth"
 	"todo/internal/database"
-	router "todo/internal/http"
 	"todo/internal/todo"
 )
 
@@ -30,29 +29,28 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize the repositories
+	authRepository := auth.NewRepository(db)
+	todoRepository := todo.NewRepository(db)
+
 	// Initialize services
-	authService := auth.NewService(db, &cfg.Auth)
-	todoService := todo.NewService(db)
+	authService := auth.NewService(authRepository, &cfg.Auth)
+	todoService := todo.NewService(todoRepository)
 
 	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
 	todoHandler := todo.NewHandler(todoService)
 
+	mux := http.NewServeMux()
+
 	// Setup routes
-	mux := router.NewRouter(authHandler, todoHandler)
-
-	// Auth routes
-	mux.HandleFunc("/register", authHandler.Register)
-	mux.HandleFunc("/login", authHandler.Login)
-
-	// To-do Routes
-	todoRoutes := http.NewServeMux()
-	todoRoutes.HandleFunc("/", todoHandler.Create)
-	todoRoutes.HandleFunc("/get", todoHandler.Get)
-
-	// Apply JWT middleware
-	mux.Handle("/todos", auth.JwtMiddleware(&cfg.Auth, http.StripPrefix("/todos", todoRoutes)))
-	mux.Handle("/todos/", auth.JwtMiddleware(&cfg.Auth, http.StripPrefix("/todos", todoRoutes)))
+	// Auth
+	mux.HandleFunc("POST /register", authHandler.Register)
+	mux.HandleFunc("POST /login", authHandler.Login)
+	// To-do
+	mux.Handle("POST /todos", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.Create)))
+	mux.Handle("GET /todos", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.Get)))
+	mux.Handle("POST /todos/done", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.SetDone)))
 
 	// Add global prefix to the routes
 	apiHandler := http.StripPrefix("/api", mux)

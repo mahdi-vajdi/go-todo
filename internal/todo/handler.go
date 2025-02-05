@@ -67,3 +67,40 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(todo)
 }
+
+func (h *Handler) SetDone(w http.ResponseWriter, r *http.Request) {
+	type requestBody struct {
+		ID   string
+		Done bool
+	}
+
+	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body requestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var todoId, err = strconv.ParseInt(body.ID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid Todo ID", http.StatusBadRequest)
+	}
+
+	err = h.service.SetDone(todoId, int64(userId), body.Done)
+	if err != nil {
+		if err.Error() == "todo not found" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

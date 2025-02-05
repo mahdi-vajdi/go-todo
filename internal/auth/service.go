@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
@@ -11,17 +10,17 @@ import (
 )
 
 type Service struct {
-	db  *sql.DB
-	cfg *config.AuthConfig
+	repository *Repository
+	cfg        *config.AuthConfig
+}
+
+func NewService(repository *Repository, config *config.AuthConfig) *Service {
+	return &Service{repository: repository, cfg: config}
 }
 
 type LoginResponse struct {
 	User  User   `json:"user"`
 	Token string `json:"token"`
-}
-
-func NewService(db *sql.DB, config *config.AuthConfig) *Service {
-	return &Service{db: db, cfg: config}
 }
 
 func (s *Service) RegisterUser(credentials Credentials) error {
@@ -30,29 +29,21 @@ func (s *Service) RegisterUser(credentials Credentials) error {
 		return fmt.Errorf("error hashing password: %w", err)
 	}
 
-	query := `INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)`
-	_, err = s.db.Exec(query, credentials.Email, hashedPassword, time.Now())
+	err = s.repository.CreateUser(credentials.Email, hashedPassword)
 	if err != nil {
-		return fmt.Errorf("error creating user: %w", err)
+		return errors.New(err.Error())
 	}
 
 	return nil
 }
 
 func (s *Service) Login(credentials Credentials) (*LoginResponse, error) {
-	var user User
-	var hashedPassword string
-
-	query := `SELECT id, email, password, created_at FROM users WHERE email = ?`
-	err := s.db.QueryRow(query, credentials.Email).Scan(&user.Id, &user.Email, &hashedPassword, &user.CreatedAt)
+	user, err := s.repository.GetUserByEmail(credentials.Email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("invalid credentials")
-		}
-		return nil, fmt.Errorf("error getting user from database: %w", err)
+		return nil, errors.New(err.Error())
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(credentials.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -62,7 +53,7 @@ func (s *Service) Login(credentials Credentials) (*LoginResponse, error) {
 	}
 
 	return &LoginResponse{
-		User:  user,
+		User:  *user,
 		Token: token,
 	}, nil
 }
