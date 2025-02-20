@@ -26,7 +26,7 @@ func (s *Service) GetById(todoId int64, userId int64) (*Todo, error) {
 	return todo, err
 }
 
-func (s *Service) SetDone(todoId int64, userId int64, completed bool) error {
+func (s *Service) UpdateCompleted(todoId int64, userId int64, completed bool) error {
 	err := s.repository.UpdateCompleted(todoId, userId, completed)
 	if err != nil {
 		return err

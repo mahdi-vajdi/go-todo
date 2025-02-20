@@ -1,42 +1,34 @@
 package auth
 
 import (
-	"context"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"strings"
-	"todo/config"
 )
 
-type contextKey string
+const UserContextKey string = "user"
 
-const UserContextKey contextKey = "user"
+func JwtMiddleware(authService *Service) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			authHeader := c.Request().Header.Get("Authorization")
+			// Check if auth header is valid
+			if authHeader == "" || len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			}
 
-func JwtMiddleware(cfg *config.AuthConfig, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+			// Remove "Bearer " prefix
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+			userId, err := authService.ValidateToken(tokenString)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			}
+
+			// Store user information in context
+			c.Set(UserContextKey, userId)
+
+			return next(c)
 		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return cfg.JwtSecret, nil
-		})
-		if err != nil || !token.Valid {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// Add user's ID to the request context
-		ctx := context.WithValue(r.Context(), UserContextKey, claims["user_id"])
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}
 }

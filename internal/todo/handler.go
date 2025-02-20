@@ -1,7 +1,7 @@
 package todo
 
 import (
-	"encoding/json"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
 	"todo/internal/auth"
@@ -15,92 +15,68 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+func (h *Handler) Create(c echo.Context) error {
+	userId := c.Get(auth.UserContextKey).(int64)
 
 	var todo Todo
-	if err := json.NewDecoder(r.Body).Decode(&todo); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	if err := c.Bind(&todo); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	todo.UserId = int64(userId)
+	todo.UserId = userId
+
 	if err := h.service.Create(&todo); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(todo)
+	return c.NoContent(http.StatusCreated)
 }
 
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+func (h *Handler) Get(c echo.Context) error {
+	userId := c.Get(auth.UserContextKey).(int64)
+	todoId := c.Param("id")
 
-	idStr := r.URL.Query().Get("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(todoId, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid ID parameter", http.StatusBadRequest)
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid ID parameter")
 	}
 
-	todo, err := h.service.GetById(id, int64(userId))
+	todo, err := h.service.GetById(id, userId)
 	if err != nil {
 		if err.Error() == "todo not found" {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
+			return echo.NewHTTPError(http.StatusNotFound, err.Error())
 		}
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(todo)
+	return c.JSON(http.StatusOK, todo)
 }
 
-func (h *Handler) SetDone(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(c echo.Context) error {
 	type requestBody struct {
-		ID   string
-		Done bool
+		Completed bool `json:"completed"`
 	}
 
-	userId, ok := r.Context().Value(auth.UserContextKey).(float64)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
+	userId := c.Get(auth.UserContextKey).(int64)
+	todoIdString := c.Param("id")
 	var body requestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
 
-	var todoId, err = strconv.ParseInt(body.ID, 10, 64)
+	var todoId, err = strconv.ParseInt(todoIdString, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid Todo ID", http.StatusBadRequest)
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid Todo ID")
 	}
 
-	err = h.service.SetDone(todoId, int64(userId), body.Done)
+	err = h.service.UpdateCompleted(todoId, userId, body.Completed)
 	if err != nil {
 		if err.Error() == "todo not found" {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
+			return echo.NewHTTPError(http.StatusNotFound, "Invalid Todo ID")
 		}
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, "Internal server error")
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }

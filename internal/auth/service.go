@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"strconv"
 	"time"
 	"todo/config"
 )
@@ -58,10 +59,37 @@ func (s *Service) Login(credentials Credentials) (*LoginResponse, error) {
 	}, nil
 }
 
-func (s *Service) generateToken(userId int64) (string, error) {
-	claims := jwt.MapClaims{"user_id": userId, "exp": time.Now().Add(24 * time.Hour).Unix(), "iat": time.Now().Unix()}
+func (s *Service) ValidateToken(tokenString string) (int64, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method for the jwt
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unauthorized")
+		}
+		return s.cfg.JwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		return 0, errors.New("unauthorized")
+	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	userIdString, err := token.Claims.GetSubject()
+	if err != nil {
+		return 0, fmt.Errorf("error extracting user ID from token: %w", err)
+	}
+
+	userId, _ := strconv.ParseInt(userIdString, 10, 64)
+
+	return userId, nil
+}
+
+func (s *Service) generateToken(userId int64) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		Issuer:    "Go-Todo",
+		Subject:   strconv.FormatInt(userId, 10),
+		Audience:  nil,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+		NotBefore: jwt.NewNumericDate(time.Now()),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	})
 
 	tokenString, err := token.SignedString(s.cfg.JwtSecret)
 	if err != nil {

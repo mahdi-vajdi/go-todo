@@ -1,6 +1,9 @@
 package main
 
 import (
+	"database/sql"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"log"
 	"net/http"
 	"todo/config"
@@ -27,37 +30,54 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Printf("error closing database connectio %s", err.Error())
+		}
+	}(db)
 
 	// Initialize the repositories
 	authRepository := auth.NewRepository(db)
 	todoRepository := todo.NewRepository(db)
 
-	// Initialize services
+	// Initialize the services
 	authService := auth.NewService(authRepository, &cfg.Auth)
 	todoService := todo.NewService(todoRepository)
 
-	// Initialize handlers
+	// Initialize the handlers
 	authHandler := auth.NewHandler(authService)
 	todoHandler := todo.NewHandler(todoService)
 
-	mux := http.NewServeMux()
+	// Create the http server
+	e := echo.New()
 
-	// Setup routes
-	// Auth
-	mux.HandleFunc("POST /register", authHandler.Register)
-	mux.HandleFunc("POST /login", authHandler.Login)
-	// To-do
-	mux.Handle("POST /todos", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.Create)))
-	mux.Handle("GET /todos", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.Get)))
-	mux.Handle("POST /todos/done", auth.JwtMiddleware(&cfg.Auth, http.HandlerFunc(todoHandler.SetDone)))
+	// Middlewares
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
-	// Add global prefix to the routes
-	apiHandler := http.StripPrefix("/api", mux)
+	// Setup apiRoute prefix
+	apiRoute := e.Group("/api")
+
+	// Auth routes
+	apiRoute.POST("/register", authHandler.Register)
+	apiRoute.POST("/login", authHandler.Login)
+
+	// To-do routes
+	todoRoute := apiRoute.Group("/todos")
+	todoRoute.Use(auth.JwtMiddleware(authService))
+	todoRoute.POST("", todoHandler.Create)
+	todoRoute.GET("/:id", todoHandler.Get)
+	todoRoute.PATCH("/:id", todoHandler.Update)
+
+	// Handle not found routes
+	e.RouteNotFound("/*", func(c echo.Context) error {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Not found"})
+	})
 
 	// Start the server
-	log.Println("Server starting on port 8080")
-	if err := http.ListenAndServe(":8080", apiHandler); err != nil {
+	log.Print("server starting on port 8080")
+	if err := e.Start(":8080"); err != nil {
 		log.Fatal(err)
 	}
 }
