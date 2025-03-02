@@ -29,7 +29,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf(".env file not found %w\n", err)
 	}
 
-	// Get the database config
+	// Get the database configs
 	port, err := strconv.Atoi(os.Getenv("MYSQL_PORT"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid db port %w", err)

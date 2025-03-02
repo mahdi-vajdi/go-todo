@@ -8,7 +8,7 @@ import (
 
 const UserContextKey string = "user"
 
-func JwtMiddleware(authService *Service) echo.MiddlewareFunc {
+func JwtMiddleware(authService AuthService) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			authHeader := c.Request().Header.Get("Authorization")

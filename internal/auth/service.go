@@ -7,15 +7,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"strconv"
 	"time"
-	"todo/config"
+	"todo/configs"
 )
 
+type AuthService interface {
+	RegisterUser(credentials Credentials) error
+	Login(credentials Credentials) (*LoginResponse, error)
+	ValidateToken(tokenString string) (int64, error)
+}
+
 type Service struct {
-	repository *Repository
+	repository Repository
 	cfg        *config.AuthConfig
 }
 
-func NewService(repository *Repository, config *config.AuthConfig) *Service {
+func NewService(repository Repository, config *config.AuthConfig) AuthService {
 	return &Service{repository: repository, cfg: config}
 }
 

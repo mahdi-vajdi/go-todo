@@ -1,14 +1,20 @@
 package todo
 
-type Service struct {
-	repository *Repository
+type Service interface {
+	Create(todo *Todo) error
+	GetById(todoId int64, userId int64) (*Todo, error)
+	UpdateCompleted(todoId int64, userId int64, completed bool) error
 }
 
-func NewService(repository *Repository) *Service {
-	return &Service{repository: repository}
+type TodoService struct {
+	repository Repository
 }
 
-func (s *Service) Create(todo *Todo) error {
+func NewService(repository Repository) Service {
+	return &TodoService{repository: repository}
+}
+
+func (s *TodoService) Create(todo *Todo) error {
 	err := s.repository.Create(todo)
 	if err != nil {
 		return err
@@ -17,7 +23,7 @@ func (s *Service) Create(todo *Todo) error {
 	return nil
 }
 
-func (s *Service) GetById(todoId int64, userId int64) (*Todo, error) {
+func (s *TodoService) GetById(todoId int64, userId int64) (*Todo, error) {
 	todo, err := s.repository.GetOneById(todoId, userId)
 	if err != nil {
 		return nil, err
@@ -26,7 +32,7 @@ func (s *Service) GetById(todoId int64, userId int64) (*Todo, error) {
 	return todo, err
 }
 
-func (s *Service) UpdateCompleted(todoId int64, userId int64, completed bool) error {
+func (s *TodoService) UpdateCompleted(todoId int64, userId int64, completed bool) error {
 	err := s.repository.UpdateCompleted(todoId, userId, completed)
 	if err != nil {
 		return err

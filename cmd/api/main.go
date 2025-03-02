@@ -6,10 +6,12 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"log"
 	"net/http"
-	"todo/config"
+	"todo/configs"
 	"todo/internal/auth"
-	"todo/internal/database"
+	authMysql "todo/internal/auth/database"
+	"todo/internal/shared/database"
 	"todo/internal/todo"
+	todoMysql "todo/internal/todo/database"
 )
 
 func main() {
@@ -38,8 +40,8 @@ func main() {
 	}(db)
 
 	// Initialize the repositories
-	authRepository := auth.NewRepository(db)
-	todoRepository := todo.NewRepository(db)
+	authRepository := authMysql.NewRepository(db)
+	todoRepository := todoMysql.NewRepository(db)
 
 	// Initialize the services
 	authService := auth.NewService(authRepository, &cfg.Auth)
