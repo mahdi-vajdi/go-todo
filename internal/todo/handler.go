@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
+	"time"
 	"todo/internal/auth"
 )
 
@@ -22,6 +23,10 @@ func (h *Handler) Create(c echo.Context) error {
 	if err := c.Bind(&todo); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+
+	now := time.Now()
+	todo.CreatedAt = now
+	todo.UpdatedAt = now
 
 	todo.UserId = userId
 

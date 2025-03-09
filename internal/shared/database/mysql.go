@@ -1,9 +1,9 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	"time"
 )
 
@@ -15,12 +15,12 @@ type Config struct {
 	Name     string
 }
 
-func NewConnection(config Config) (*sql.DB, error) {
+func NewConnection(config Config) (*sqlx.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", config.User, config.Password, config.Host, config.Port, config.Name)
 
-	db, err := sql.Open("mysql", dsn)
+	db, err := sqlx.Connect("mysql", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("error opening databse: %w", err)
+		return nil, fmt.Errorf("error connecting to the databse: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
