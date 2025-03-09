@@ -1,0 +1,7 @@
+CREATE TABLE todos
+(
+    id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username   VARCHAR(50)  NOT NULL UNIQUE,
+    email      VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP    NOT NULL DEFAULT NOW()
+);
